@@ -362,16 +362,7 @@ sealed abstract class DisjunctionInstances1 extends DisjunctionInstances2 {
 }
 
 sealed abstract class DisjunctionInstances2 extends DisjunctionInstances3 {
-  implicit def DisjunctionInstances2[L]: Traverse[({type l[a] = L \/ a})#l] with Monad[({type l[a] = L \/ a})#l] with Cozip[({type l[a] = L \/ a})#l] with Plus[({type l[a] = L \/ a})#l] with Optional[({type l[a] = L \/ a})#l] = new Traverse[({type l[a] = L \/ a})#l] with Monad[({type l[a] = L \/ a})#l] with Cozip[({type l[a] = L \/ a})#l] with Plus[({type l[a] = L \/ a})#l] with Optional[({type l[a] = L \/ a})#l] {
-    override def map[A, B](fa: L \/ A)(f: A => B) =
-      fa map f
-
-    def bind[A, B](fa: L \/ A)(f: A => L \/ B) =
-      fa flatMap f
-
-    def point[A](a: => A) =
-      \/-(a)
-
+  implicit def DisjunctionInstances2[L]: Traverse[({type l[a] = L \/ a})#l] with DisjunctionMonad[L] with Cozip[({type l[a] = L \/ a})#l] with Plus[({type l[a] = L \/ a})#l] with Optional[({type l[a] = L \/ a})#l] = new Traverse[({type l[a] = L \/ a})#l] with DisjunctionMonad[L] with Cozip[({type l[a] = L \/ a})#l] with Plus[({type l[a] = L \/ a})#l] with Optional[({type l[a] = L \/ a})#l] {
     def traverseImpl[G[_] : Applicative, A, B](fa: L \/ A)(f: A => G[B]) =
       fa.traverse(f)
 
@@ -407,6 +398,14 @@ sealed abstract class DisjunctionInstances3 {
                                                   (f: A => G[C], g: B => G[D]) =
       fab.bitraverse(f, g)
   }
+
+  implicit def DisjunctionMonadError[E]: MonadError[\/, E] = new MonadError[\/, E] with DisjunctionMonad[E] {
+    def raiseError[A](e: E): E \/ A = -\/(e)
+    def handleError[A](fa: E \/ A)(f: E => E \/ A): E \/ A = fa match {
+      case -\/(e) => f(e)
+      case r => r
+    }
+  }
 }
 
 trait DisjunctionFunctions {
@@ -435,4 +434,15 @@ trait DisjunctionFunctions {
   } catch {
     case e if ex.erasure.isInstance(e) => -\/(e.asInstanceOf[E])
   }
+}
+
+private[scalaz] trait DisjunctionMonad[L] extends Monad[({ type λ[α] = L \/ α })#λ] {
+  override def map[A, B](fa: L \/ A)(f: A => B) =
+    fa map f
+
+  def bind[A, B](fa: L \/ A)(f: A => L \/ B) =
+    fa flatMap f
+
+  def point[A](a: => A) =
+    \/-(a)
 }
