@@ -134,22 +134,13 @@ object LazyEither extends LazyEitherInstances with LazyEitherFunctions {
 }
 
 // TODO more instances
-sealed abstract class LazyEitherInstances {
-  implicit def lazyEitherInstance[E] = new Traverse[({type λ[α]=LazyEither[E, α]})#λ] with Monad[({type λ[α]=LazyEither[E, α]})#λ] with Cozip[({type λ[α]=LazyEither[E, α]})#λ] with Optional[({type λ[α]=LazyEither[E, α]})#λ] {
+sealed abstract class LazyEitherInstances extends LazyEitherInstances0 {
+  implicit def lazyEitherInstance[E] = new Traverse[({type λ[α]=LazyEither[E, α]})#λ] with LazyEitherMonad[E] with Cozip[({type λ[α]=LazyEither[E, α]})#λ] with Optional[({type λ[α]=LazyEither[E, α]})#λ] {
     def traverseImpl[G[_]: Applicative, A, B](fa: LazyEither[E, A])(f: A => G[B]): G[LazyEither[E, B]] =
       fa traverse f
 
     override def foldRight[A, B](fa: LazyEither[E, A], z: => B)(f: (A, => B) => B): B =
       fa.foldRight(z)(f)
-
-    def bind[A, B](fa: LazyEither[E, A])(f: A => LazyEither[E, B]): LazyEither[E, B] =
-      fa flatMap (a => f(a))
-
-    override def ap[A, B](fa: => LazyEither[E, A])(f: => LazyEither[E, A => B]): LazyEither[E, B] =
-      fa ap f
-
-    def point[A](a: => A): LazyEither[E, A] =
-      LazyEither.lazyRight(a)
 
     def cozip[A, B](a: LazyEither[E, A \/ B]) =
       a.fold(
@@ -175,6 +166,24 @@ sealed abstract class LazyEitherInstances {
         b => Applicative[G].map(g(b))(d => LazyEither.lazyRight[C](d))
       )
   }
+}
+
+sealed abstract class LazyEitherInstances0 {
+  implicit def lazyEitherMonadError[E]: MonadError[LazyEither, E] = new MonadError[LazyEither, E] with LazyEitherMonad[E] {
+    def raiseError[A](e: E): LazyEither[E, A] = LazyEither.lazyLeft(e)
+    def handleError[A](fa: LazyEither[E, A])(f: E => LazyEither[E, A]): LazyEither[E, A] = fa.left.flatMap(e => f(e))
+  }
+}
+
+private[scalaz] trait LazyEitherMonad[E] extends Monad[({ type λ[α] = LazyEither[E, α] })#λ] {
+  def bind[A, B](fa: LazyEither[E, A])(f: A => LazyEither[E, B]): LazyEither[E, B] =
+    fa flatMap (a => f(a))
+
+  override def ap[A, B](fa: => LazyEither[E, A])(f: => LazyEither[E, A => B]): LazyEither[E, B] =
+    fa ap f
+
+  def point[A](a: => A): LazyEither[E, A] =
+    LazyEither.lazyRight(a)
 }
 
 trait LazyEitherFunctions {
