@@ -106,22 +106,29 @@ object IndexedStateT extends StateTInstances with StateTFunctions {
 // Prioritized Implicits for type class instances
 //
 
-sealed abstract class IndexedStateTInstances2 {
+sealed abstract class IndexedStateTInstances3 {
   implicit def indexedStateTContravariant[S2, A0, F[_]]: Contravariant[IndexedStateT[F, ?, S2, A0]] =
     new IndexedStateTContravariant[S2, A0, F] {}
 }
 
-sealed abstract class IndexedStateTInstances1 extends IndexedStateTInstances2 {
+sealed abstract class IndexedStateTInstances2 extends IndexedStateTInstances3 {
   implicit def indexedStateTFunctorLeft[S1, A0, F[_]](implicit F0: Functor[F]): Functor[IndexedStateT[F, S1, ?, A0]] =
     new IndexedStateTFunctorLeft[S1, A0, F] {
       implicit def F: Functor[F] = F0
     }
 }
 
-sealed abstract class IndexedStateTInstances0 extends IndexedStateTInstances1 {
+sealed abstract class IndexedStateTInstances1 extends IndexedStateTInstances2 {
   implicit def indexedStateTBifunctor[S1, F[_]](implicit F0: Functor[F]): Bifunctor[IndexedStateT[F, S1, ?, ?]] =
     new IndexedStateTBifunctor[S1, F] {
       implicit def F: Functor[F] = F0
+    }
+}
+
+sealed abstract class IndexedStateTInstances0 extends IndexedStateTInstances1 {
+  implicit def indexedStateTBiapply[S1, F[_]](implicit F0: Apply[F]): Biapply[IndexedStateT[F, S1, ?, ?]] =
+    new IndexedStateTBiapply[S1, F] {
+      implicit def F: Apply[F] = F0
     }
 }
 
@@ -181,6 +188,18 @@ private trait IndexedStateTBifunctor[S1, F[_]] extends Bifunctor[IndexedStateT[F
   implicit def F: Functor[F]
 
   override def bimap[A, B, C, D](fab: IndexedStateT[F, S1, A, B])(f: A => C, g: B => D): IndexedStateT[F, S1, C, D] = fab.bimap(f)(g)
+}
+
+private trait IndexedStateTBiapply[S1, F[_]] extends Biapply[IndexedStateT[F, S1, ?, ?]] with IndexedStateTBifunctor[S1, F] {
+  implicit def F: Apply[F]
+
+  override def biap[A, B, C, D](fab: => IndexedStateT[F, S1, A, B])(f: => IndexedStateT[F, S1, A => C, B => D]): IndexedStateT[F, S1, C, D] =
+    IndexedStateT { s1 =>
+      F.ap(fab(s1))(F.map(f(s1)) {
+        case (a2c, b2d) =>
+          (ab: (A, B)) => (a2c(ab._1), b2d(ab._2))
+      })
+    }
 }
 
 private trait IndexedStateTFunctorLeft[S1, A0, F[_]] extends Functor[IndexedStateT[F, S1, ?, A0]] {

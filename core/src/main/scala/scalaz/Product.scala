@@ -208,6 +208,14 @@ private trait ProductBifunctor[F[_, _], G[_, _]] extends Bifunctor[λ[(α, β) =
     (F.bimap(fab._1)(f, g), G.bimap(fab._2)(f, g))
 }
 
+private trait ProductBiapply[F[_, _], G[_, _]] extends Biapply[λ[(α, β) => (F[α, β], G[α, β])]] with ProductBifunctor[F, G] {
+  implicit def F: Biapply[F]
+  implicit def G: Biapply[G]
+
+  override def biap[A, B, C, D](fab: => (F[A, B], G[A, B]))(f: => (F[A => C, B => D], G[A => C, B => D])): (F[C, D], G[C, D]) =
+    (F.biap(fab._1)(f._1), G.biap(fab._2)(f._2))
+}
+
 private trait ProductBifoldable[F[_, _], G[_, _]] extends Bifoldable[λ[(α, β) => (F[α, β], G[α, β])]] {
   implicit def F: Bifoldable[F]
 

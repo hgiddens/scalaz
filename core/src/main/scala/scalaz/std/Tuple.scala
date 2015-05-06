@@ -2,11 +2,13 @@ package scalaz
 package std
 
 sealed trait TupleInstances0 {
-  implicit val tuple2Bitraverse: Bitraverse[Tuple2] = new Bitraverse[Tuple2] {
+  implicit val tuple2BiInstances: Bitraverse[Tuple2] with Biapply[Tuple2] = new Bitraverse[Tuple2] with Biapply[Tuple2] {
     override def bimap[A, B, C, D](fab: (A, B))(f: A => C, g: B => D) =
       (f(fab._1), g(fab._2))
     def bitraverseImpl[G[_]: Applicative, A, B, C, D](fab: (A, B))(f: A => G[C], g: B => G[D]) =
       Applicative[G].tuple2(f(fab._1), g(fab._2))
+    def biap[A, B, C, D](fab: => (A, B))(f: => (A => C, B => D)) =
+      (f._1(fab._1), f._2(fab._2))
   }
 
   implicit val tuple2Associative: Associative[Tuple2] = new Associative[Tuple2] {
